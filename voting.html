@@ -57,10 +57,11 @@
 
       <div class="mt-8 flex flex-wrap gap-4 justify-center items-center">
         <input type="password" id="adminPassword" class="input-field" placeholder="Admin Password" aria-label="Admin Password">
-        <a href="" target="_blank" class="btn">
-          Sign in
-        </a>
+        <button id="signInBtn" class="btn" type="button">Sign in</button>
       </div>
+
+      <div id="authMessage" class="mt-4" aria-live="polite" style="min-height:1.25rem;color:#fff;font-weight:700"></div>
+
     </header>
     <!-- FOOTER -->
     <footer class="text-center text-white py-8">
@@ -79,5 +80,73 @@
     </footer>
 
   </main>
+
+  <script>
+    // Handle sign-in: POST to a server-side endpoint that validates against ADMIN_PASSWORD env var.
+    (function () {
+      const btn = document.getElementById('signInBtn');
+      const input = document.getElementById('adminPassword');
+      const msg = document.getElementById('authMessage');
+
+      function setMessage(text, isError) {
+        msg.textContent = text;
+        msg.style.color = isError ? '#ffdddd' : '#ddffdd';
+      }
+
+      btn.addEventListener('click', async () => {
+        const password = input.value || '';
+        input.value = password; // don't clear so user can retry
+
+        if (!password) {
+          setMessage('Please enter the admin password', true);
+          input.focus();
+          return;
+        }
+
+        btn.disabled = true;
+        btn.style.opacity = '0.8';
+        setMessage('Verifying...', false);
+
+        try {
+          const res = await fetch('/api/verify-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+          });
+
+          if (!res.ok) {
+            if (res.status === 401) {
+              setMessage('Invalid password. Please try again.', true);
+            } else {
+              setMessage('Verification failed. Try again later.', true);
+            }
+            input.focus();
+            return;
+          }
+
+          const data = await res.json();
+          if (data && data.ok) {
+            setMessage('Signed in — redirecting...', false);
+            // Redirect to an admin area. Change path if you have a specific admin page.
+            setTimeout(() => { window.location.href = '/admin.html'; }, 800);
+          } else {
+            setMessage('Invalid password. Please try again.', true);
+            input.focus();
+          }
+        } catch (err) {
+          console.error('verify error', err);
+          setMessage('Network error while verifying. Try again later.', true);
+        } finally {
+          btn.disabled = false;
+          btn.style.opacity = '';
+        }
+      });
+
+      // Allow Enter key to submit
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') btn.click();
+      });
+    })();
+  </script>
 </body>
 </html>
